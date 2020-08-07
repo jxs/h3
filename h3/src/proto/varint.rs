@@ -178,3 +178,23 @@ impl VarInt {
         }
     }
 }
+
+pub trait BufExt {
+    fn get_var(&mut self) -> Result<u64, UnexpectedEnd>;
+}
+
+impl<T: Buf> BufExt for T {
+    fn get_var(&mut self) -> Result<u64, UnexpectedEnd> {
+        Ok(VarInt::decode(self)?.into_inner())
+    }
+}
+
+pub trait BufMutExt {
+    fn write_var(&mut self, x: u64);
+}
+
+impl<T: BufMut> BufMutExt for T {
+    fn write_var(&mut self, x: u64) {
+        VarInt::from_u64(x).unwrap().encode(self);
+    }
+}
