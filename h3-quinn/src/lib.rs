@@ -11,7 +11,8 @@ use futures::{ready, FutureExt, StreamExt};
 use bytes::{Buf, Bytes};
 use quinn::{
     generic::{
-        Connection, IncomingBiStreams, IncomingUniStreams, OpenBi, OpenUni, RecvStream, SendStream,
+        Connection, IncomingBiStreams, IncomingUniStreams, NewConnection, OpenBi, OpenUni,
+        RecvStream, SendStream,
     },
     ConnectionError, ReadError, VarInt, WriteError,
 };
@@ -19,12 +20,31 @@ use quinn_proto::crypto::Session;
 
 use h3::quic;
 
-struct QuinnConnection<S: Session> {
+pub struct QuinnConnection<S: Session> {
     conn: Connection<S>,
     incoming_bi: IncomingBiStreams<S>,
     opening_bi: Option<OpenBi<S>>,
     incoming_uni: IncomingUniStreams<S>,
     opening_uni: Option<OpenUni<S>>,
+}
+
+impl<S: Session> QuinnConnection<S> {
+    pub fn new(new_conn: NewConnection<S>) -> Self {
+        let NewConnection {
+            uni_streams,
+            bi_streams,
+            connection,
+            ..
+        } = new_conn;
+
+        Self {
+            conn: connection,
+            incoming_bi: bi_streams,
+            opening_bi: None,
+            incoming_uni: uni_streams,
+            opening_uni: None,
+        }
+    }
 }
 
 impl<B, S> quic::Connection<B> for QuinnConnection<S>
@@ -90,7 +110,7 @@ where
     }
 }
 
-struct QuinnBidiStream<B, S>
+pub struct QuinnBidiStream<B, S>
 where
     B: Buf,
     S: Session,
@@ -156,7 +176,7 @@ where
     }
 }
 
-struct QuinnRecvStream<S: Session> {
+pub struct QuinnRecvStream<S: Session> {
     stream: RecvStream<S>,
     offset: u64,
     chunks: BTreeMap<u64, Bytes>,
@@ -221,7 +241,7 @@ impl<S: Session> quic::RecvStream for QuinnRecvStream<S> {
     }
 }
 
-struct QuinnSendStream<B: Buf, S: Session> {
+pub struct QuinnSendStream<B: Buf, S: Session> {
     stream: SendStream<S>,
     writing: Option<B>,
 }
